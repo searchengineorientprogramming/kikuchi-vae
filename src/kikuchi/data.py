@@ -4,7 +4,7 @@ import torch
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
-import config
+from . import config
 
 
 def get_transform():
