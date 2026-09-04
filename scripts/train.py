@@ -2,10 +2,10 @@ import torch
 from tqdm.auto import tqdm
 
 import config
-from data import get_dataloaders
-from kikuchi_vae import VAE, count_parameters
-from losses import vae_loss
-from utils import ensure_directories, get_device, save_history, set_seed
+from kikuchi import get_dataloaders
+from kikuchi import VAE, count_parameters
+from kikuchi import vae_loss
+from kikuchi import ensure_directories, get_device, save_history, set_seed
 
 
 def train_one_epoch(model, loader, optimizer, device, beta):
