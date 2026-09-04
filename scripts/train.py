@@ -1,7 +1,7 @@
 import torch
 from tqdm.auto import tqdm
 
-import config
+from kikuchi import config
 from kikuchi import get_dataloaders
 from kikuchi import VAE, count_parameters
 from kikuchi import vae_loss
