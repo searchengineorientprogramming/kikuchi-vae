@@ -9,7 +9,7 @@ from pathlib import Path
 SEED = 42
 
 # Model
-LATENT_DIM = 16
+LATENT_DIM = 32
 IN_CHANNELS = 1
 
 # Data
@@ -26,5 +26,5 @@ GRAD_CLIP_NORM = 1.0
 # Output
 CHECKPOINT_DIR = Path("checkpoints")
 RESULTS_DIR = Path("results")
-BEST_CHECKPOINT = CHECKPOINT_DIR / "vae_mnist_best.pt"
+BEST_CHECKPOINT = CHECKPOINT_DIR / "vae_best.pt"
 HISTORY_FILE = RESULTS_DIR / "training_history.json"
