@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+
+# Virtual environments
+.venv/
+venv/
+
+# macOS
+.DS_Store
+
+# Model/data artifacts
+checkpoints/
+data/
+
+# Build output
+build/
+dist/
+
+# Environment secrets
+.env
