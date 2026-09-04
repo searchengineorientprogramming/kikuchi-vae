@@ -1,2 +1,0 @@
-torch
-huggingface_hub

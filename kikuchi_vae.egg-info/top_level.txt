@@ -1,7 +1,0 @@
-checkpoints
-data
-kikuchi_vae
-notebooks
-results
-scripts
-tests
