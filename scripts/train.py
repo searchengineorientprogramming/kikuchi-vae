@@ -246,12 +246,12 @@ def main():
         weighted_kl = config.BETA * test_metrics["kl_loss"]
 
         print(
-            f"Epoch {epoch:02d}/{config.EPOCHS} | "
-            f"train={train_metrics['loss']:.4f} | "
-            f"test={test_metrics['loss']:.4f} | "
-            f"recon={test_metrics['recon_loss']:.4f} | "
-            f"KL={test_metrics['kl_loss']:.4f} | "
-            f"beta*KL={weighted_kl:.4f}"
+            f"Epoch {epoch:03d}/{config.EPOCHS} | "
+            f"train_loss={train_metrics['loss']:.4f} | "
+            f"val_loss={test_metrics['loss']:.4f} | "
+            f"train_recon={train_metrics['recon_loss']:.4f} | "
+            f"val_recon={test_metrics['recon_loss']:.4f} | "
+            f"val_KL={test_metrics['kl_loss']:.4f}"
         )
 
         if test_metrics["loss"] < best_test_loss:
