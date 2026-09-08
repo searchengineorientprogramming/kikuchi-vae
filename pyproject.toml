@@ -13,6 +13,7 @@ requires-python = ">=3.10"
 
 dependencies = [
     "torch",
+    "torchvision",
     "huggingface_hub",
     "numpy",
     "pillow",
