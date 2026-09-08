@@ -3,7 +3,7 @@ from kikuchi import VAE
 
 
 checkpoint = torch.load(
-    "checkpoints/vae_mnist_best.pt",
+    "checkpoints/vae_best.pt",
     map_location="cpu"
 )
 
