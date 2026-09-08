@@ -272,7 +272,7 @@ def main():
         
         plot_reconstructions(
             model=model,
-            dataset=val_loader.dataset,
+            dataset=test_loader.dataset,
             device=device,
             output_path=(
                 config.RESULTS_DIR
