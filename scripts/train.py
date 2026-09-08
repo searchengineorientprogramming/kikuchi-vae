@@ -12,6 +12,7 @@ import csv
 from pathlib import Path
 import matplotlib.pyplot as plt
 
+
 def train_one_epoch(model, loader, optimizer, device, beta):
     model.train()
 
@@ -221,6 +222,8 @@ def main():
 
     best_test_loss = float("inf")
 
+    reconstruction_indices = None
+
     for epoch in range(1, config.EPOCHS + 1):
         train_metrics = train_one_epoch(
             model,
@@ -270,7 +273,7 @@ def main():
                 config.BEST_CHECKPOINT,
             )
         
-        plot_reconstructions(
+        reconstruction_indices = plot_reconstructions(
             model=model,
             dataset=test_loader.dataset,
             device=device,
@@ -280,6 +283,7 @@ def main():
                 / f"epoch_{epoch:03d}.png"
             ),
             num_images=8,
+            indices=reconstruction_indices,
         )
 
         save_history(history, config.HISTORY_FILE)

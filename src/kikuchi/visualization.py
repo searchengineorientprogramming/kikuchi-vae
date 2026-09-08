@@ -12,6 +12,7 @@ def plot_reconstructions(
     device,
     output_path,
     num_images=8,
+    indices = None,
 ):
     """
     Randomly select images from a dataset and compare
@@ -25,10 +26,11 @@ def plot_reconstructions(
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Randomly select samples from the whole dataset
-    indices = random.sample(
-        range(len(dataset)),
-        k=min(num_images, len(dataset)),
-    )
+    if indices is None:
+        indices = random.sample(
+            range(len(dataset)),
+            k=min(num_images, len(dataset)),
+        )
 
     images = []
 
@@ -113,3 +115,5 @@ def plot_reconstructions(
     )
 
     plt.close(fig)
+
+    return indices
