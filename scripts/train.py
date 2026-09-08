@@ -7,6 +7,9 @@ from kikuchi import VAE, count_parameters
 from kikuchi import vae_loss
 from kikuchi import ensure_directories, get_device, save_history, set_seed
 
+import csv
+from pathlib import Path
+import matplotlib.pyplot as plt
 
 def train_one_epoch(model, loader, optimizer, device, beta):
     model.train()
@@ -91,6 +94,61 @@ def evaluate(model, loader, device, beta):
         "kl_loss": total_kl / n,
     }
 
+def save_metrics_csv(history, output_path):
+    output_path = Path(output_path)
+
+    with output_path.open("w", newline="") as f:
+        writer = csv.writer(f)
+
+        writer.writerow([
+            "epoch",
+            "train_loss",
+            "train_recon_loss",
+            "train_kl_loss",
+            "val_loss",
+            "val_recon_loss",
+            "val_kl_loss",
+        ])
+    
+    num_epochs = len(history["train_loss"])
+
+    for i in range(num_epochs):
+        writer.writerow([
+            i + 1,
+            history["train_loss"][i],
+            history["train_recon_loss"][i],
+            history["train_kl_loss"][i],
+            history["test_loss"][i],
+            history["test_recon_loss"][i],
+            history["test_kl_loss"][i],
+        ])
+
+def plot_training_history(history, output_path):
+    epochs = range(1, len(history["train_loss"]) + 1)
+
+    plt.figure(figsize=(8, 5))
+
+    plt.plot(
+        epochs,
+        history["train_loss"],
+        label="Train loss",
+    )
+
+    plt.plot(
+        epochs,
+        history["test_loss"],
+        label="Validation loss",
+    )
+
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.title("VAE Training")
+    plt.legend()
+    plt.grid(alpha=0.3)
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150)
+    plt.close()
 
 def main():
     set_seed(config.SEED)
@@ -180,6 +238,14 @@ def main():
             )
 
         save_history(history, config.HISTORY_FILE)
+        save_metrics_csv(
+            history,
+            config.RESULTS_DIR / "metrics.csv",
+        )
+        plot_training_history(
+            history,
+            config.RESULTS_DIR / "training_curves.png",
+        )
 
     print(f"Best test loss: {best_test_loss:.6f}")
     print(f"Checkpoint: {config.BEST_CHECKPOINT}")

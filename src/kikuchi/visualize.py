@@ -9,11 +9,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-import config
-from data import get_dataloaders
-from model import VAE
-from utils import ensure_directories, get_device, set_seed
-
+from kikuchi import config
+from kikuchi import get_dataloaders
+from kikuchi import VAE
+from kikuchi import ensure_directories, get_device, set_seed
 
 def to_display_range(x: torch.Tensor) -> torch.Tensor:
     """Convert [-1,1] tensors to [0,1] for plotting."""
