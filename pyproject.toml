@@ -17,6 +17,7 @@ dependencies = [
     "huggingface_hub",
     "numpy",
     "pillow",
+    "matplotlib",
 ]
 
 
