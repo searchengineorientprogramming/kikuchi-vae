@@ -18,6 +18,7 @@ dependencies = [
     "numpy",
     "pillow",
     "matplotlib",
+    "safetensors>=0.4.3",
 ]
 
 
