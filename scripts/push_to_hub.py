@@ -1,5 +1,5 @@
 import torch
-from kikuchi_vae import VAE
+from kikuchi import VAE
 
 
 checkpoint = torch.load(
