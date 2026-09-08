@@ -110,18 +110,18 @@ def save_metrics_csv(history, output_path):
             "val_kl_loss",
         ])
     
-    num_epochs = len(history["train_loss"])
+        num_epochs = len(history["train_loss"])
 
-    for i in range(num_epochs):
-        writer.writerow([
-            i + 1,
-            history["train_loss"][i],
-            history["train_recon_loss"][i],
-            history["train_kl_loss"][i],
-            history["test_loss"][i],
-            history["test_recon_loss"][i],
-            history["test_kl_loss"][i],
-        ])
+        for i in range(num_epochs):
+            writer.writerow([
+                i + 1,
+                history["train_loss"][i],
+                history["train_recon_loss"][i],
+                history["train_kl_loss"][i],
+                history["test_loss"][i],
+                history["test_recon_loss"][i],
+                history["test_kl_loss"][i],
+            ])
 
 def plot_training_history(history, output_path):
     epochs = range(1, len(history["train_loss"]) + 1)
