@@ -150,6 +150,38 @@ def plot_training_history(history, output_path):
     plt.savefig(output_path, dpi=150)
     plt.close()
 
+def plot_metric(
+    history,
+    train_key,
+    val_key,
+    ylabel,
+    output_path,
+):
+    epochs = range(1, len(history[train_key]) + 1)
+
+    plt.figure(figsize=(8, 5))
+
+    plt.plot(
+        epochs,
+        history[train_key],
+        label="Train",
+    )
+
+    plt.plot(
+        epochs,
+        history[val_key],
+        label="Validation",
+    )
+
+    plt.xlabel("Epoch")
+    plt.ylabel(ylabel)
+    plt.legend()
+    plt.grid(alpha=0.3)
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150)
+    plt.close()
+
 def main():
     set_seed(config.SEED)
     ensure_directories(config.DATA_DIR, config.CHECKPOINT_DIR, config.RESULTS_DIR)
@@ -246,6 +278,29 @@ def main():
             history,
             config.RESULTS_DIR / "training_curves.png",
         )
+        plot_metric(
+            history,
+            "train_loss",
+            "test_loss",
+            "Total loss",
+            config.RESULTS_DIR / "loss_curve.png",
+        )
+
+        plot_metric(
+            history,
+            "train_recon_loss",
+            "test_recon_loss",
+            "Reconstruction loss",
+            config.RESULTS_DIR / "reconstruction_curve.png",
+        )
+
+        plot_metric(
+            history,
+            "train_kl_loss",
+            "test_kl_loss",
+            "KL divergence",
+            config.RESULTS_DIR / "kl_curve.png",
+)
 
     print(f"Best test loss: {best_test_loss:.6f}")
     print(f"Checkpoint: {config.BEST_CHECKPOINT}")
