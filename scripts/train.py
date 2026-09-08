@@ -6,6 +6,7 @@ from kikuchi import get_dataloaders
 from kikuchi import VAE, count_parameters
 from kikuchi import vae_loss
 from kikuchi import ensure_directories, get_device, save_history, set_seed
+from kikuchi import plot_reconstructions
 
 import csv
 from pathlib import Path
@@ -268,6 +269,18 @@ def main():
                 },
                 config.BEST_CHECKPOINT,
             )
+        
+        plot_reconstructions(
+            model=model,
+            dataset=val_loader.dataset,
+            device=device,
+            output_path=(
+                config.RESULTS_DIR
+                / "reconstructions"
+                / f"epoch_{epoch:03d}.png"
+            ),
+            num_images=8,
+        )
 
         save_history(history, config.HISTORY_FILE)
         save_metrics_csv(
