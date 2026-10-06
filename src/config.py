@@ -4,7 +4,7 @@ LATENT_DIM = 64
 IN_CHANNELS = 1
 EPOCHS = 20              
 LEARNING_RATE = 1e-4
-BETA = 1e-6  #1e-4
+BETA = 1e-7  #1e-4
 KL_REDUCTION = "sum"    
 ADAM_BETAS = (0.9, 0.999)
 ADAM_EPS = 1e-8
@@ -19,7 +19,7 @@ UP2_PATH = Path("data/718RX_1um_120x120.up2")
 UP2_OFFSET = 16           
 SPLIT_FRACTIONS = (0.8, 0.1, 0.1)
 SPLIT_FILE = None        
-MAX_PATTERNS = 60000      
+MAX_PATTERNS = 50000      
 NORMALIZATION = "per_pattern_minmax" 
 
 DEVICE = "auto"          
