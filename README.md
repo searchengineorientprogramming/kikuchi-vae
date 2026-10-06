@@ -1,131 +1,74 @@
-# MNIST Variational Autoencoder
+# Kikuchi VAE
 
-A small PyTorch VAE project for learning and debugging variational autoencoders on MNIST.
-
-The architecture is adapted from a larger convolutional VAE originally designed for 120×120 Kikuchi patterns. The overall encoder/decoder structure is preserved, while the spatial convolution parameters are adjusted for native 28×28 MNIST images.
-
-## Repository structure
-
-```text
-mnist-vae/
-├── config.py              # Hyperparameters and paths
-├── model.py
-├── losses.py               # Encoder, decoder, VAE, and VAE loss
-├── data.py                # MNIST preprocessing and DataLoaders
-├── train.py               # Training + validation + checkpoint saving
-├── visualize.py           # Reconstructions and random VAE samples
-├── utils.py               # Seed, device, directory, history helpers
-├── requirements.txt       # Python dependencies
-├── tests/
-│   └── test_model.py      # Forward/backward smoke test
-├── data/                  # MNIST download location (gitignored)
-├── checkpoints/           # Saved model weights (gitignored)
-└── results/               # Training history and plots (gitignored)
-```
-
-## Current baseline
-
-The working baseline found during debugging is:
-
-```python
-LATENT_DIM = 16
-BATCH_SIZE = 64
-LEARNING_RATE = 1e-4
-BETA = 1e-3
-EPOCHS = 10
-GRAD_CLIP_NORM = 1.0
-```
-
-MNIST is kept at its native 28×28 size and normalized from `[0, 1]` to `[-1, 1]` because the decoder ends in `tanh`.
+A PyTorch variational autoencoder for reconstructing EBSD Kikuchi patterns and learning compact latent representations. Patterns are read directly from a UP2 file on demand, without loading the entire dataset into RAM or exporting separate images.
 
 ## Setup
 
-```bash
-python -m venv .venv
-source .venv/bin/activate      # macOS / Linux
-pip install -r requirements.txt
-```
-
-## 1. Test the model
-
-Before training, verify the tensor shapes and backward pass:
+Run commands from the project root:
 
 ```bash
-python tests/test_model.py
+python -m pip install -r requirements.txt
 ```
 
-Expected output:
+## Configure and train
 
-```text
-Model smoke test passed.
+Edit `src/config.py` to set the input file and experiment settings. For example:
+
+```python
+UP2_PATH = Path("data/718RX_1um_120x120.up2")
+UP2_OFFSET = 16  
+MAX_PATTERNS = 80000
+SPLIT_FRACTIONS = (0.8, 0.1, 0.1)
+
+EPOCHS = 20
+BATCH_SIZE = 16
+LEARNING_RATE = 1e-4
+BETA = 1e-5  # Example value to tune for reconstruction quality.
+KL_REDUCTION = "sum"
+RESUME = None
+RUN_TEST_AT_END = False  # Enable for final evaluation after tuning.
 ```
 
-## 2. Train
+Start training:
 
 ```bash
-python train.py
+python src/train.py
 ```
 
-The script downloads MNIST automatically, trains the VAE, and saves the best checkpoint to:
+The script reports the pattern count and image dimensions, creates or reuses saved train/validation/test indices, and trains the model. Validation runs after each epoch. The current loader supports grayscale 120 × 120 patterns and normalizes inputs to `[-1, 1]`.
 
-```text
-checkpoints/vae_mnist_best.pt
-```
+Splits are saved beside the UP2 file and reused for matching settings. Training order is shuffled each epoch, while split membership stays fixed. Random pattern splits do not guarantee separation between grains or scans.
 
-Training metrics are saved to:
+## Main files
 
-```text
-results/training_history.json
-```
+| File | Purpose |
+| --- | --- |
+| `src/config.py` | Data paths, hyperparameters, device, and output settings |
+| `src/data.py` | UP2 inspection, splitting, normalization, and batch loading |
+| `src/model.py` | Encoder, latent sampling, and decoder |
+| `src/losses.py` | Reconstruction MSE plus beta-weighted KL loss |
+| `src/train.py` | Training, validation, checkpoints, and optional testing |
+| `src/visualization.py` | Loss curves and reconstruction comparisons |
+| `src/utils.py` | Device selection, seeds, and saving helpers |
 
-The training log prints both the raw KL loss and its actual weighted contribution `beta * KL`. This makes it easier to diagnose the balance between reconstruction and latent regularization.
+## Results
 
-## 3. Visualize results
+Each run saves its results in `runs/<run_name_timestamp>/`:
 
-After training:
+- `run_config.json`: effective settings and dataset details.
+- `metrics.csv` and `training_history.json`: epoch losses and timing.
+- `training_curves.png`: training and validation loss curves.
+- `reconstructions/`: fixed validation inputs and their reconstructions.
+- `vae_best.pt`: checkpoint with the lowest validation total loss.
+- `vae_last.pt`: latest completed epoch.
+- `test_metrics.json`: best-model test results when final testing is enabled.
+
+Training uses sampled latent vectors; validation and reconstruction plots use the latent mean. Inspect reconstruction images alongside losses when comparing experiments.
+
+## Resume training
 
 ```bash
-python visualize.py
+python src/train.py --resume runs/<previous_run>/vae_last.pt --epochs 20
 ```
 
-This creates:
-
-```text
-results/reconstructions.png
-results/generated_samples.png
-```
-
-## Why beta is small
-
-The objective is
-
-```text
-loss = reconstruction_loss + beta * KL_loss
-```
-
-With mean-reduced pixel MSE, the reconstruction loss is much smaller in scale than the raw KL loss. `BETA = 1e-3` was therefore used as the current stable baseline rather than assuming `beta = 1` is universally appropriate.
-
-The useful quantity to monitor is not only the raw KL loss, but:
-
-```text
-beta * KL_loss
-```
-
-relative to the reconstruction loss.
-
-## Debugging result
-
-The model was debugged in two stages:
-
-1. Temporarily remove stochastic sampling and KL regularization by using `z = mu`. The deterministic autoencoder successfully reduced reconstruction MSE from roughly 0.52 to 0.05, confirming that the encoder and decoder could learn MNIST.
-2. Restore VAE sampling and KL loss with `beta = 1e-3`. Reconstruction continued to improve while KL remained nonzero and stable, confirming that the variational latent representation was working.
-
-This baseline can now be used before experimenting with latent dimension, beta, or transferring the workflow back to Kikuchi patterns.
-
-
-### Code organization
-
-- `model.py`: Encoder, Decoder, VAE architecture, and model utilities.
-- `losses.py`: VAE objective, including reconstruction and KL-divergence terms.
-- `train.py`: Optimization and evaluation loops.
-- `config.py`: Experiment hyperparameters.
+`--epochs` specifies the total target epoch count. Keep the original data and learning settings, and retain `vae_best.pt` beside `vae_last.pt`. Use a fresh run when changing hyperparameters.

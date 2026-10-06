@@ -13,6 +13,7 @@ venv/
 # Model/data artifacts
 checkpoints/
 data/
+runs/
 
 # Build output
 build/

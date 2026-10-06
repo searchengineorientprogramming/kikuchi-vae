@@ -1,4 +1,3 @@
-"""Read one UP2 image at a time; persist disjoint, reproducible index splits."""
 from __future__ import annotations
 import hashlib
 import json
@@ -6,11 +5,12 @@ import os
 from pathlib import Path
 import struct
 import warnings
+import random
 
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
-from . import config
+import config
 
 
 def inspect_up2(path, offset_override=None):
@@ -21,7 +21,6 @@ def inspect_up2(path, offset_override=None):
         if len(header) != 16:
             raise ValueError("UP2 file is shorter than its initial header.")
         version, width, height, declared_offset = struct.unpack("<4I", header)
-        # Small fingerprint to detect common source changes without scanning 26 GB.
         f.seek(0)
         first = f.read(65536)
         f.seek(max(0, stat.st_size - 65536))
@@ -51,7 +50,7 @@ def inspect_up2(path, offset_override=None):
                 version=version, header_offset=declared_offset, offset=offset,
                 count=count, height=height, width=width, dtype="<u2")
     print(f"UP2: {path}\nPatterns: {count:,}\nSize (H x W): {height} x {width}"
-          f"\nDtype: uint16 | offset: {offset} | file: {stat.st_size / 1024**3:.2f} GiB")
+            f"\nDtype: uint16 | offset: {offset} | file: {stat.st_size / 1024**3:.2f} GiB")
     return meta
 
 
@@ -68,7 +67,7 @@ def create_or_load_splits(meta, split_file, seed, fractions, max_patterns=None):
     if min(expected_lengths) < 1:
         raise ValueError("Too few patterns for three nonempty splits.")
     signature = dict(schema=1, source=meta, seed=int(seed),
-                     fractions=fractions.tolist(), max_patterns=max_patterns)
+                        fractions=fractions.tolist(), max_patterns=max_patterns)
     split_file = Path(split_file).expanduser().resolve()
     names = ("train_idx", "val_idx", "test_idx")
     if split_file.exists():
@@ -84,7 +83,6 @@ def create_or_load_splits(meta, split_file, seed, fractions, max_patterns=None):
         ids = np.random.default_rng(seed).permutation(n)[:selected_n]
         splits = [ids[:nt], ids[nt:nt + nv], ids[nt + nv:]]
         split_file.parent.mkdir(parents=True, exist_ok=True)
-        # Exclusive create prevents accidental overwriting of an existing split.
         with split_file.open("xb") as f:
             np.savez(f, **dict(zip(names, splits)), metadata_json=json.dumps(signature))
         print(f"Created splits: {split_file}")
@@ -102,11 +100,6 @@ def create_or_load_splits(meta, split_file, seed, fractions, max_patterns=None):
 
 
 class UP2Dataset(Dataset):
-    """Return (float32 image [1,H,W], original pattern ID).
-
-    A per-process file handle and seek/read keep image allocations bounded.
-    No full-file memory map, image export, or image cache is needed.
-    """
     def __init__(self, metadata, indices, normalization="per_pattern_minmax"):
         if normalization not in ("per_pattern_minmax", "uint16"):
             raise ValueError("Unknown normalization mode.")
@@ -152,24 +145,39 @@ class UP2Dataset(Dataset):
         return torch.from_numpy(image[None]), pattern_id
 
 
+def seed_worker(worker_id):
+    seed = torch.initial_seed() % (2**32)
+    np.random.seed(seed)
+    random.seed(seed)
+    torch.set_num_threads(1)
+
+
 def get_dataloaders(path=None, offset_override=config.UP2_OFFSET,
                     split_file=None, seed=config.SEED,
                     fractions=config.SPLIT_FRACTIONS,
                     batch_size=config.BATCH_SIZE, num_workers=config.NUM_WORKERS,
                     max_patterns=None, normalization=config.NORMALIZATION,
-                    pin_memory=False):
+                    pin_memory=False, eval_batch_size=None, prefetch_factor=1,
+                    persistent_workers=True, shuffle_seed=None):
     meta = inspect_up2(config.UP2_PATH if path is None else path, offset_override)
     if split_file is None:
         suffix = "" if max_patterns is None else f".subset{max_patterns}"
         split_file = str(meta["source_path"]) + suffix + ".vae_splits.npz"
     splits, split_file = create_or_load_splits(meta, split_file, seed, fractions, max_patterns)
     datasets = [UP2Dataset(meta, ids, normalization) for ids in splits]
-    generator = torch.Generator().manual_seed(seed)
-    options = dict(batch_size=batch_size, num_workers=num_workers, pin_memory=pin_memory)
-    if num_workers > 0:
-        options.update(prefetch_factor=1, persistent_workers=True)
-    loaders = [DataLoader(ds, shuffle=(i == 0), generator=generator if i == 0 else None,
-                          **options) for i, ds in enumerate(datasets)]
+    generator = torch.Generator().manual_seed(seed if shuffle_seed is None else shuffle_seed)
+    loaders = []
+    for i, ds in enumerate(datasets):
+        options = dict(batch_size=batch_size if i == 0 else (eval_batch_size or batch_size),
+                        num_workers=num_workers, pin_memory=pin_memory,
+                        worker_init_fn=seed_worker)
+        if num_workers > 0:
+            options.update(prefetch_factor=prefetch_factor,
+                            persistent_workers=persistent_workers and i == 0,
+                            multiprocessing_context="spawn")
+        loaders.append(DataLoader(ds, shuffle=(i == 0),
+                                    generator=generator if i == 0 else torch.Generator().manual_seed(seed + i),
+                                  **options))
     return (*loaders, {"up2": meta, "split_file": str(split_file),
-                       "normalization": normalization,
-                       "split_counts": [len(ds) for ds in datasets]})
+                        "normalization": normalization,
+                        "split_counts": [len(ds) for ds in datasets]})

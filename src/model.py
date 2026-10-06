@@ -6,7 +6,6 @@ from huggingface_hub import PyTorchModelHubMixin
 
 
 class ResidualConv2d(nn.Module):
-    """Same-shape residual convolution used for the shortcut layers."""
 
     def __init__(
         self,
@@ -30,27 +29,10 @@ class ResidualConv2d(nn.Module):
         self.act = nn.LeakyReLU(negative_slope, inplace=True)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # Shortcut connection: x -> conv(x) + x -> activation
         return self.act(self.conv(x) + x)
 
 
 class Encoder(nn.Module):
-    """
-    Encoder for 120x120 single-channel Kikuchi patterns.
-
-    For latent_dim=128, the architecture follows the 128-D column
-    in the paper table:
-
-        120x120x1
-        -> 56x56x32   : Conv 9x9, stride 2
-        -> 56x56x32   : residual Conv 9x9
-        -> 24x24x64   : Conv 9x9, stride 2
-        -> 24x24x64   : residual Conv 9x9
-        -> 8x8x128    : Conv 9x9, stride 2
-        -> 8x8x128    : residual Conv 9x9
-        -> 1x1x256    : Conv 8x8
-        -> 256-D FC   : [mu(128), logvar(128)]
-    """
 
     def __init__(self, latent_dim: int = 128, in_channels: int = 1):
         super().__init__()
@@ -92,10 +74,7 @@ class Encoder(nn.Module):
         self.conv4 = nn.Conv2d(
             c3, c4, kernel_size=8, stride=1, padding=0
         )
-
-        # One FC layer produces both VAE statistics:
-        # first latent_dim values = mu
-        # second latent_dim values = logvar
+        
         self.fc = nn.Linear(c4, 2 * latent_dim)
 
     def forward(
@@ -137,23 +116,6 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-    """
-    Decoder for 120x120 single-channel Kikuchi patterns.
-
-    For latent_dim=128:
-
-        z(128)
-        -> projection + reshape -> 4x4x128
-        -> 11x11x128 : ConvTranspose 9x9, stride 2
-        -> 11x11x128 : residual Conv 9x9
-        -> 27x27x64  : ConvTranspose 9x9, stride 2
-        -> 27x27x64  : residual Conv 9x9
-        -> 61x61x32  : ConvTranspose 9x9, stride 2
-        -> 61x61x32  : residual Conv 9x9
-        -> 120x120x16: ConvTranspose 9x9, stride 2
-        -> 120x120x16: residual Conv 9x9
-        -> 120x120x1 : Conv 1x1 + tanh
-    """
 
     def __init__(self, latent_dim: int = 128, out_channels: int = 1):
         super().__init__()
@@ -209,8 +171,6 @@ class Decoder(nn.Module):
         self.res3 = ResidualConv2d(c3, kernel_size=9)
 
         # 61 -> 120
-        # PyTorch needs padding=5 and output_padding=1 to reproduce
-        # the 120x120 spatial size listed in the paper table.
         self.deconv4 = nn.ConvTranspose2d(
             c3,
             c4,
@@ -256,12 +216,10 @@ class Decoder(nn.Module):
         x = self.act(self.deconv4(x))  # [B, 16, 120, 120]
         x = self.res4(x)
 
-        # Paper uses tanh at the decoder output.
         return torch.tanh(self.out_conv(x))
 
 
 class VAE(nn.Module, PyTorchModelHubMixin):
-    """VAE for 120x120 Kikuchi patterns."""
 
     def __init__(
         self,
@@ -288,7 +246,6 @@ class VAE(nn.Module, PyTorchModelHubMixin):
         logvar: torch.Tensor,
     ) -> torch.Tensor:
 
-        # Helps avoid numerical overflow in exp(logvar).
         logvar = torch.clamp(logvar, min=-10.0, max=10.0)
 
         std = torch.exp(0.5 * logvar)
@@ -301,12 +258,6 @@ class VAE(nn.Module, PyTorchModelHubMixin):
         x: torch.Tensor,
         sample: bool = False,
     ) -> torch.Tensor:
-        """
-        Return the latent representation.
-
-        sample=False -> deterministic representation mu
-        sample=True  -> sampled latent z
-        """
         mu, logvar = self.encoder(x)
 
         if sample:
@@ -318,7 +269,6 @@ class VAE(nn.Module, PyTorchModelHubMixin):
         return self.decoder(z)
 
     def reconstruct(self, x: torch.Tensor) -> torch.Tensor:
-        # Deterministic reconstruction using mu.
         z = self.encode(x, sample=False)
         return self.decode(z)
 
